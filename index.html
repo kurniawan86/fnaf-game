@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>FNAF Pizzeria Simulator Night</title>
+  <link href="https://fonts.googleapis.com/css2?family=Creepster&family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --red:#e03030; --orange:#e07820; --green:#20c060;
+      --panel:rgba(10,10,10,0.93);
+      --glow-red:0 0 18px #e03030,0 0 40px #e0303088;
+      --glow-green:0 0 12px #20c060,0 0 30px #20c06088;
+    }
+    body {
+      background:#000; color:#fff;
+      font-family:'Roboto Mono',monospace;
+      min-height:100vh; display:flex; flex-direction:column; align-items:center;
+      overflow-x:hidden;
+    }
+    #bg {
+      position:fixed; inset:0; z-index:0;
+      background:radial-gradient(ellipse at center,#1a0a00 0%,#000 70%);
+      animation:bgFlicker 8s infinite;
+    }
+    @keyframes bgFlicker{0%,100%{opacity:1}50%{opacity:.9}81%{opacity:.65}82%{opacity:1}}
+    #screen {
+      position:relative; z-index:10;
+      width:100%; max-width:900px;
+      display:flex; flex-direction:column; align-items:center;
+      padding:18px 14px 36px;
+    }
+    h1 {
+      font-family:'Creepster',cursive;
+      font-size:clamp(2rem,6vw,3.4rem);
+      color:var(--red); text-shadow:var(--glow-red);
+      letter-spacing:4px; margin-bottom:4px;
+      animation:titlePulse 3s ease-in-out infinite;
+    }
+    @keyframes titlePulse{0%,100%{text-shadow:var(--glow-red)}50%{text-shadow:0 0 30px #e03030,0 0 80px #e03030cc}}
+    .subtitle{color:#777;font-size:.7rem;letter-spacing:3px;margin-bottom:18px;}
+
+    /* HUD */
+    #hud {
+      width:100%; display:flex; justify-content:space-between; align-items:center;
+      background:var(--panel); border:1px solid #2a1a00;
+      border-radius:12px; padding:10px 18px; margin-bottom:14px;
+      gap:14px; flex-wrap:wrap;
+    }
+    .hud-item{display:flex;flex-direction:column;align-items:center;gap:3px;}
+    .hud-label{font-size:.58rem;color:#777;letter-spacing:2px;text-transform:uppercase;}
+    .hud-val{font-size:1.2rem;font-weight:700;}
+    #night-val{color:var(--orange);}
+    #hour-val{color:#aaa;}
+    #survived-val{color:var(--green);}
+    #power-wrap{flex:1;min-width:160px;}
+    #power-bar-bg{width:100%;height:13px;background:#1a1a1a;border-radius:7px;border:1px solid #333;overflow:hidden;}
+    #power-bar{height:100%;width:100%;background:linear-gradient(90deg,#e03030,#e07820,#20c060);border-radius:7px;transition:width .4s ease;}
+    #power-txt{font-size:.65rem;color:#888;text-align:right;margin-top:2px;}
+
+    /* MUTE BUTTON */
+    #mute-btn{
+      position:fixed;top:12px;right:14px;z-index:100;
+      background:rgba(20,20,20,.85);border:1px solid #333;border-radius:8px;
+      color:#888;font-size:.7rem;padding:5px 10px;cursor:pointer;
+      font-family:'Roboto Mono',monospace;letter-spacing:1px;
+      transition:all .2s;
+    }
+    #mute-btn:hover{border-color:#666;color:#fff;}
+
+    /* ARENA */
+    #arena {
+      width:100%; position:relative;
+      background:var(--panel); border:1px solid #2a1a00; border-radius:16px;
+      min-height:310px; overflow:hidden; margin-bottom:10px;
+      display:flex; flex-direction:column; align-items:center; justify-content:center;
+      transition:border-color .3s,box-shadow .3s;
+    }
+    #arena.attack-mode{
+      border-color:var(--red);
+      box-shadow:0 0 20px #e0303044, inset 0 0 30px #e0303011;
+      animation:arenaPulse 1s ease-in-out infinite alternate;
+    }
+    @keyframes arenaPulse{0%{box-shadow:0 0 15px #e0303044}100%{box-shadow:0 0 35px #e0303088}}
+    #arena::before{
+      content:'';position:absolute;inset:0;z-index:2;pointer-events:none;
+      background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.12) 2px,rgba(0,0,0,.12) 4px);
+      opacity:.5;
+    }
+    #arena::after{
+      content:'';position:absolute;inset:0;z-index:2;pointer-events:none;
+      background:radial-gradient(ellipse at center,transparent 50%,rgba(0,0,0,.65) 100%);
+    }
+    #quiet-scene{
+      position:absolute;inset:0;z-index:3;
+      display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;
+      transition:opacity .4s;
+    }
+    .office-icon{font-size:3.5rem;animation:breathe 4s ease-in-out infinite;}
+    @keyframes breathe{0%,100%{opacity:.5;transform:scale(1)}50%{opacity:1;transform:scale(1.05)}}
+    #status-text{font-size:1rem;color:#bbb;text-align:center;letter-spacing:1px;}
+
+    /* ALERT */
+    #alert-scene{
+      position:absolute;inset:0;z-index:4;
+      display:flex;flex-direction:column;align-items:center;justify-content:center;
+      padding:20px;gap:10px;
+      opacity:0;pointer-events:none;transition:opacity .25s;
+    }
+    #alert-scene.visible{opacity:1;pointer-events:all;}
+    #dir-indicators{display:flex;gap:24px;align-items:center;}
+    .dir-arrow{font-size:2.6rem;transition:all .3s;opacity:.15;}
+    .dir-arrow.active{
+      opacity:1;
+      filter:drop-shadow(0 0 10px var(--red));
+      animation:arrowPulse .5s ease-in-out infinite alternate;
+    }
+    @keyframes arrowPulse{0%{transform:scale(1)}100%{transform:scale(1.25)}}
+    #warn-tag{
+      background:rgba(200,0,0,.2);border:1px solid var(--red);
+      border-radius:8px;padding:5px 16px;
+      font-size:.7rem;color:#ffaaaa;letter-spacing:2px;
+      animation:warningBlink 1s steps(1) infinite;
+    }
+    @keyframes warningBlink{0%,100%{opacity:1}50%{opacity:.3}}
+    #anim-text-name{
+      font-family:'Creepster',cursive;
+      font-size:2.4rem;color:var(--red);
+      text-shadow:var(--glow-red);letter-spacing:3px;
+    }
+    #anim-location{font-size:.8rem;color:#cc8800;letter-spacing:2px;text-transform:uppercase;}
+    #anim-description{font-size:.75rem;color:#888;text-align:center;max-width:340px;line-height:1.6;}
+
+    /* Attack animatronic image */
+    #anim-img-preview {
+      width: 160px; height: 160px;
+      object-fit: contain;
+      filter: saturate(1.2) brightness(.95) drop-shadow(0 0 12px #e0303066);
+      animation: animHover 3s ease-in-out infinite;
+      border-radius: 8px;
+    }
+    @keyframes animHover{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-6px) scale(1.03)}}
+    #anim-img-fallback{font-size:3.5rem;display:none;}
+
+    /* LURE */
+    #lure-prompt{
+      display:none;position:absolute;inset:0;z-index:10;
+      background:rgba(0,0,0,.88);
+      flex-direction:column;align-items:center;justify-content:center;gap:18px;
+    }
+    #lure-prompt.active{display:flex;animation:fadein .3s ease;}
+    #lure-text{font-size:.95rem;color:#ccc;text-align:center;padding:0 20px;}
+    .lure-btn{
+      padding:11px 28px;border-radius:30px;font-family:'Roboto Mono',monospace;
+      font-size:.85rem;font-weight:700;cursor:pointer;border:2px solid;transition:all .2s;
+    }
+    #lure-yes{border-color:var(--green);color:var(--green);background:rgba(32,192,96,.1);}
+    #lure-no {border-color:var(--red);  color:var(--red);  background:rgba(220,50,50,.1);}
+    #lure-yes:hover{background:rgba(32,192,96,.3);box-shadow:var(--glow-green);}
+    #lure-no:hover {background:rgba(220,50,50,.3);box-shadow:var(--glow-red);}
+
+    /* TIMER */
+    #timer-wrap{width:100%;height:8px;background:#111;border-radius:4px;margin-bottom:12px;}
+    #timer-bar{height:100%;width:100%;background:var(--red);border-radius:4px;box-shadow:var(--glow-red);transition:width linear;}
+
+    /* ACTIONS */
+    #actions{
+      width:100%;display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:10px;margin-bottom:14px;
+    }
+    .action-group{
+      background:rgba(15,15,15,.98);
+      border:1px solid #252525;border-radius:14px;
+      padding:11px 10px 9px;
+      display:flex;flex-direction:column;align-items:center;gap:7px;
+      transition:border-color .25s,box-shadow .25s;
+    }
+    /* Glow when attack is active */
+    #grp-door.lit  {border-color:#e03030;box-shadow:0 0 14px #e0303055;}
+    #grp-vent.lit  {border-color:#5555ee;box-shadow:0 0 14px #5555ee55;}
+    #grp-cam.lit   {border-color:#20a0c0;box-shadow:0 0 14px #20a0c055;}
+    #grp-audio.lit {border-color:#20c060;box-shadow:0 0 14px #20c06055;}
+    .action-label{
+      display:flex;align-items:center;gap:7px;
+      font-size:.75rem;font-weight:700;letter-spacing:2px;color:#aaa;
+      text-transform:uppercase;
+    }
+    .action-label .act-icon{font-size:1.3rem;}
+    .action-sides{display:flex;gap:8px;width:100%;}
+
+    .side-btn{
+      flex:1;padding:10px 4px;
+      border-radius:10px;border:1px solid #333;
+      background:rgba(28,28,28,.9);
+      color:#ccc;font-family:'Roboto Mono',monospace;
+      font-size:.8rem;font-weight:700;letter-spacing:1px;
+      cursor:pointer;
+      display:flex;flex-direction:column;align-items:center;gap:4px;
+      transition:all .18s ease;
+    }
+    .side-btn .side-icon{font-size:1.1rem;}
+
+    /* Enabled (during attack) hover */
+    .side-btn:hover:not(:disabled){
+      border-color:var(--orange);background:rgba(50,25,0,.95);
+      color:#fff;transform:translateY(-2px);box-shadow:0 0 14px #e0782055;
+    }
+    .side-btn:active:not(:disabled){transform:scale(.95);}
+
+    /* Disabled (no threat) */
+    .side-btn:disabled{opacity:.25;cursor:not-allowed;filter:grayscale(1);}
+
+    /* Per-group hover colors */
+    #grp-door  .side-btn:hover:not(:disabled){border-color:#e03030;box-shadow:0 0 12px #e0303066;}
+    #grp-vent  .side-btn:hover:not(:disabled){border-color:#5555ee;box-shadow:0 0 12px #5555ee66;}
+    #grp-cam   .side-btn:hover:not(:disabled){border-color:#20a0c0;box-shadow:0 0 12px #20a0c066;}
+    #grp-audio .side-btn:hover:not(:disabled){border-color:#20c060;box-shadow:0 0 12px #20c06066;}
+
+    /* Pulse animation for buttons during active attack */
+    .action-group.lit .side-btn:not(:disabled){
+      border-color:#444;color:#eee;
+      animation:btnPulse 2s ease-in-out infinite;
+    }
+    @keyframes btnPulse{0%,100%{opacity:1}50%{opacity:.75}}
+
+    /* LOG */
+    #log-box{
+      width:100%;background:var(--panel);
+      border:1px solid #1a1a1a;border-radius:12px;
+      padding:12px 14px;min-height:72px;max-height:120px;
+      overflow-y:auto;font-size:.74rem;color:#777;
+      display:flex;flex-direction:column-reverse;gap:3px;
+    }
+    .log-entry{padding:2px 0;border-bottom:1px solid #111;}
+    .log-entry.warn{color:#ffaaaa;}
+    .log-entry.good{color:#80ffb0;}
+    .log-entry.sys {color:#5588ff;}
+    ::-webkit-scrollbar{width:4px;}
+    ::-webkit-scrollbar-thumb{background:#333;border-radius:2px;}
+
+    /* JUMPSCARE */
+    #jumpscare{
+      display:none;position:fixed;inset:0;z-index:200;
+      background:#000;flex-direction:column;align-items:center;justify-content:center;
+    }
+    #jumpscare.active{display:flex;animation:jsFlash .08s steps(1) 8;}
+    @keyframes jsFlash{0%,100%{background:#000}50%{background:#ff0000}}
+    #js-img{width:80vmin;max-width:540px;animation:jsShake .08s steps(2) infinite;object-fit:contain;}
+    @keyframes jsShake{
+      0%  {transform:translate(-7px,-5px) scale(1.12) rotate(-2deg);}
+      25% {transform:translate(6px,7px)   scale(1.17) rotate(1.5deg);}
+      50% {transform:translate(-5px,4px)  scale(1.13) rotate(-1deg);}
+      75% {transform:translate(5px,-6px)  scale(1.09) rotate(2deg);}
+      100%{transform:translate(-4px,5px)  scale(1.14) rotate(0deg);}
+    }
+    #js-text{
+      font-family:'Creepster',cursive;font-size:3rem;
+      color:#fff;text-shadow:0 0 30px red;margin-top:16px;
+      animation:jsPulse .5s ease-in-out infinite alternate;
+    }
+    @keyframes jsPulse{0%{transform:scale(1)}100%{transform:scale(1.08)}}
+
+    /* WIN */
+    #win-screen{
+      display:none;position:fixed;inset:0;z-index:200;
+      background:radial-gradient(ellipse at center,#001a00 0%,#000 80%);
+      flex-direction:column;align-items:center;justify-content:center;gap:18px;
+    }
+    #win-screen.active{display:flex;animation:fadein .8s ease;}
+    @keyframes fadein{from{opacity:0}to{opacity:1}}
+    #win-title{
+      font-family:'Creepster',cursive;
+      font-size:clamp(3rem,10vw,6rem);
+      color:var(--green);text-shadow:var(--glow-green);
+      animation:winGlow 2s ease-in-out infinite alternate;
+    }
+    @keyframes winGlow{0%{text-shadow:var(--glow-green)}100%{text-shadow:0 0 40px #20c060,0 0 100px #20c06088}}
+    #win-sub{color:#888;font-size:.9rem;letter-spacing:2px;}
+    .btn-win{
+      padding:13px 38px;background:rgba(32,192,96,.15);
+      border:2px solid var(--green);border-radius:40px;
+      color:var(--green);font-family:'Roboto Mono',monospace;
+      font-size:.95rem;font-weight:700;letter-spacing:2px;cursor:pointer;transition:all .2s;
+    }
+    .btn-win:hover{background:rgba(32,192,96,.3);box-shadow:var(--glow-green);transform:scale(1.05);}
+    .stars{font-size:2.2rem;letter-spacing:8px;}
+
+    /* img fallback */
+    img.broken{display:none;}
+    .img-fallback{font-size:6rem;text-align:center;}
+  </style>
+</head>
+<body>
+<div id="bg"></div>
+<button id="mute-btn" onclick="toggleMute()">🔊 SOUND ON</button>
+
+<!-- JUMPSCARE -->
+<div id="jumpscare">
+  <img id="js-img" src="" alt="jumpscare" onerror="this.classList.add('broken');document.getElementById('js-fallback').style.display='block'"/>
+  <div id="js-fallback" class="img-fallback" style="display:none">💀</div>
+  <div id="js-text">YOU'RE DEAD</div>
+</div>
+
+<!-- WIN -->
+<div id="win-screen">
+  <div class="stars">⭐⭐⭐</div>
+  <div id="win-title">YOU SURVIVED!</div>
+  <div id="win-sub">Night complete — 3AM to 6AM</div>
+  <div id="win-stats" style="color:#555;font-size:.75rem;letter-spacing:2px;"></div>
+  <button class="btn-win" onclick="restartGame()">▶ PLAY AGAIN</button>
+</div>
+
+<!-- MAIN -->
+<div id="screen">
+  <h1>🍕 FNAF Simulator</h1>
+  <div class="subtitle">PIZZERIA NIGHTMARE — NIGHT 1</div>
+
+  <!-- HUD -->
+  <div id="hud">
+    <div class="hud-item">
+      <span class="hud-label">Night</span>
+      <span class="hud-val" id="night-val">1</span>
+    </div>
+    <div class="hud-item">
+      <span class="hud-label">Hour</span>
+      <span class="hud-val" id="hour-val">3 AM</span>
+    </div>
+    <div class="hud-item">
+      <span class="hud-label">Survived</span>
+      <span class="hud-val" id="survived-val">0</span>
+    </div>
+    <div class="hud-item" id="power-wrap">
+      <span class="hud-label">Power</span>
+      <div id="power-bar-bg"><div id="power-bar"></div></div>
+      <div id="power-txt">100%</div>
+    </div>
+  </div>
+
+  <!-- ARENA -->
+  <div id="arena">
+    <div id="quiet-scene">
+      <div class="office-icon">🏚️</div>
+      <div id="status-text">The office is quiet…</div>
+    </div>
+    <div id="alert-scene">
+      <div id="warn-tag">⚠ WARNING — INTRUDER DETECTED</div>
+      <div id="dir-indicators">
+        <span class="dir-arrow" id="arrow-left">◀</span>
+        <span id="anim-text-name">???</span>
+        <span class="dir-arrow" id="arrow-right">▶</span>
+      </div>
+      <img id="anim-img-preview" src="" alt="animatronic"
+           onerror="this.style.display='none';document.getElementById('anim-img-fallback').style.display='block'"/>
+      <div id="anim-img-fallback">💀</div>
+      <div id="anim-location">approaching via ???</div>
+      <div id="anim-description"></div>
+    </div>
+    <div id="lure-prompt">
+      <div id="lure-text">Play an audio lure to attract them away?</div>
+      <div style="display:flex;gap:14px;">
+        <button class="lure-btn" id="lure-yes" onclick="answerLure(true)">🔊 YES, PLAY</button>
+        <button class="lure-btn" id="lure-no"  onclick="answerLure(false)">✗ NO</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TIMER -->
+  <div id="timer-wrap"><div id="timer-bar"></div></div>
+
+  <!-- ACTIONS -->
+  <div id="actions">
+    <div class="action-group" id="grp-door">
+      <div class="action-label"><span class="act-icon">🚪</span>DOOR</div>
+      <div class="action-sides">
+        <button class="side-btn" id="btn-door-left"  onclick="doAction('door','left')"><span class="side-icon">◀</span>LEFT</button>
+        <button class="side-btn" id="btn-door-right" onclick="doAction('door','right')"><span class="side-icon">▶</span>RIGHT</button>
+      </div>
+    </div>
+    <div class="action-group" id="grp-vent">
+      <div class="action-label"><span class="act-icon">🌀</span>VENT</div>
+      <div class="action-sides">
+        <button class="side-btn" id="btn-vent-left"  onclick="doAction('vent','left')"><span class="side-icon">◀</span>LEFT</button>
+        <button class="side-btn" id="btn-vent-right" onclick="doAction('vent','right')"><span class="side-icon">▶</span>RIGHT</button>
+      </div>
+    </div>
+    <div class="action-group" id="grp-cam">
+      <div class="action-label"><span class="act-icon">📷</span>CAM</div>
+      <div class="action-sides">
+        <button class="side-btn" id="btn-cam-left"  onclick="doAction('cam','left')"><span class="side-icon">◀</span>LEFT</button>
+        <button class="side-btn" id="btn-cam-right" onclick="doAction('cam','right')"><span class="side-icon">▶</span>RIGHT</button>
+      </div>
+    </div>
+    <div class="action-group" id="grp-audio">
+      <div class="action-label"><span class="act-icon">🔊</span>AUDIO</div>
+      <div class="action-sides">
+        <button class="side-btn" id="btn-audio-left"  onclick="doAction('audio','left')"><span class="side-icon">◀</span>LEFT</button>
+        <button class="side-btn" id="btn-audio-right" onclick="doAction('audio','right')"><span class="side-icon">▶</span>RIGHT</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- LOG -->
+  <div id="log-box"></div>
+</div>
+
+<script>
+// ══════════════════════════════════════════
+//  WEB AUDIO ENGINE
+// ══════════════════════════════════════════
+let audioCtx = null;
+let muted = false;
+let ambientNodes = [];
+
+function getCtx() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  // Safari starts AudioContext in 'suspended' — resume every time
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  return audioCtx;
+}
+
+function toggleMute() {
+  muted = !muted;
+  document.getElementById('mute-btn').textContent = muted ? '🔇 MUTED' : '🔊 SOUND ON';
+  if (muted) stopAmbient(); else startAmbient();
+}
+
+// ─ Ambient drone: low hum + noise ─
+function startAmbient() {
+  if (muted) return;
+  stopAmbient();
+  const ctx = getCtx();
+
+  // Low drone oscillator
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = 'sawtooth';
+  osc.frequency.value = 55;
+  gain.gain.setValueAtTime(0, ctx.currentTime);
+  gain.gain.linearRampToValueAtTime(0.04, ctx.currentTime + 2);
+  osc.connect(gain); gain.connect(ctx.destination);
+  osc.start();
+
+  // Noise layer (small buffer, looped — avoids sync freeze)
+  const bufSize = Math.floor(ctx.sampleRate * 0.25);
+  const buf = ctx.createBuffer(1, bufSize, ctx.sampleRate);
+  const data = buf.getChannelData(0);
+  for (let i = 0; i < bufSize; i++) data[i] = (Math.random() * 2 - 1) * 0.015;
+  const noise = ctx.createBufferSource();
+  noise.buffer = buf; noise.loop = true;
+  const noiseGain = ctx.createGain(); noiseGain.gain.value = 0.03;
+  const filter = ctx.createBiquadFilter(); filter.type = 'lowpass'; filter.frequency.value = 400;
+  noise.connect(filter); filter.connect(noiseGain); noiseGain.connect(ctx.destination);
+  noise.start();
+
+  ambientNodes = [osc, noise];
+}
+
+function stopAmbient() {
+  ambientNodes.forEach(n => { try { n.stop(); } catch(e){} });
+  ambientNodes = [];
+}
+
+// ─ Warning alarm: repeating beep ─
+let alarmInterval = null;
+function playAlarm() {
+  if (muted) return;
+  stopAlarm();
+  let count = 0;
+  alarmInterval = setInterval(() => {
+    if (muted || count++ > 30) { stopAlarm(); return; }
+    const ctx = getCtx();
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.type = 'square';
+    o.frequency.value = count % 2 === 0 ? 880 : 660;
+    g.gain.setValueAtTime(0.12, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.13);
+    o.connect(g); g.connect(ctx.destination);
+    o.start(); o.stop(ctx.currentTime + 0.14);
+  }, 700);
+}
+function stopAlarm() {
+  if (alarmInterval) { clearInterval(alarmInterval); alarmInterval = null; }
+}
+
+// ─ Success chime ─
+function playSuccess() {
+  if (muted) return;
+  const ctx = getCtx();
+  [523, 659, 784].forEach((freq, i) => {
+    const o = ctx.createOscillator(); const g = ctx.createGain();
+    o.type = 'sine'; o.frequency.value = freq;
+    o.detune.value = 5;
+    const t = ctx.currentTime + i * 0.12;
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(0.15, t + 0.05);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
+    o.connect(g); g.connect(ctx.destination);
+    o.start(t); o.stop(t + 0.36);
+  });
+}
+
+// ─ Error buzz (wrong action) ─
+function playError() {
+  if (muted) return;
+  const ctx = getCtx();
+  const o = ctx.createOscillator(); const g = ctx.createGain();
+  o.type = 'sawtooth'; o.frequency.value = 90;
+  g.gain.setValueAtTime(0.2, ctx.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
+  o.connect(g); g.connect(ctx.destination);
+  o.start(); o.stop(ctx.currentTime + 0.51);
+}
+
+// ─ Jumpscare screech ─
+function playScreech() {
+  if (muted) return;
+  const ctx = getCtx();
+  // White noise burst (small buffer to avoid sync freeze)
+  const bufSize = Math.floor(ctx.sampleRate * 0.35);
+  const buf = ctx.createBuffer(1, bufSize, ctx.sampleRate);
+  const data = buf.getChannelData(0);
+  for (let i = 0; i < bufSize; i++) data[i] = Math.random() * 2 - 1;
+  const ns = ctx.createBufferSource(); ns.buffer = buf;
+  ns.loop = true;
+  const ng = ctx.createGain();
+  ng.gain.setValueAtTime(0.6, ctx.currentTime);
+  ng.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.4);
+  ns.connect(ng); ng.connect(ctx.destination);
+  ns.start(); ns.stop(ctx.currentTime + 1.4);
+  // High pitched screech
+  const o = ctx.createOscillator(); const g = ctx.createGain();
+  o.type = 'sawtooth';
+  o.frequency.setValueAtTime(3000, ctx.currentTime);
+  o.frequency.exponentialRampToValueAtTime(200, ctx.currentTime + 1.2);
+  g.gain.setValueAtTime(0.3, ctx.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.3);
+  o.connect(g); g.connect(ctx.destination);
+  o.start(); o.stop(ctx.currentTime + 1.4);
+}
+
+// ─ UI click ─
+function playClick() {
+  if (muted) return;
+  const ctx = getCtx();
+  const o = ctx.createOscillator(); const g = ctx.createGain();
+  o.type = 'sine'; o.frequency.value = 440;
+  g.gain.setValueAtTime(0.08, ctx.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08);
+  o.connect(g); g.connect(ctx.destination);
+  o.start(); o.stop(ctx.currentTime + 0.09);
+}
+
+// ─ Power low beep ─
+let powerBeepInterval = null;
+function startPowerBeep() {
+  if (powerBeepInterval) return;
+  powerBeepInterval = setInterval(() => {
+    if (muted) return;
+    const ctx = getCtx();
+    const o = ctx.createOscillator(); const g = ctx.createGain();
+    o.type = 'sine'; o.frequency.value = 220;
+    g.gain.setValueAtTime(0.06, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.1);
+    o.connect(g); g.connect(ctx.destination);
+    o.start(); o.stop(ctx.currentTime + 0.11);
+  }, 1500);
+}
+function stopPowerBeep() {
+  if (powerBeepInterval) { clearInterval(powerBeepInterval); powerBeepInterval = null; }
+}
+
+// ══════════════════════════════════════════
+//  GAME DATA
+// ══════════════════════════════════════════
+const ANIMATRONICS = [
+  { name:"Lefty",         img:"lefty.png",        desc:"A sinister black bear lurking in the shadows." },
+  { name:"Scrap Baby",    img:"scrap_baby.png",   desc:"A rusted clown-bot with razor-sharp claws." },
+  { name:"Scraptrap",     img:"scraptrap.png",    desc:"A decayed rabbit suit hiding a dark secret." },
+  { name:"Molten Freddy", img:"molten_freddy.png",desc:"A melted mass of endoskeletons and wires." },
+];
+const LOCATIONS     = ["door","vent","cam","audio"];
+const SIDES         = ["left","right"];
+const HOURS         = ["3 AM","4 AM","5 AM","6 AM"];
+const REACTION_TIME = 5500;
+
+let state = {};
+let timerBarAnim = null, eventTimeout = null, clockInterval = null;
+
+// ══════════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════════
+function initState() {
+  return { alive:true, night:1, hourIdx:0, survived:0, power:100,
+           inEvent:false, currentAnim:null, currentLoc:null, currentSide:null,
+           awaitingLure:false };
+}
+
+function restartGame() {
+  document.getElementById('win-screen').classList.remove('active');
+  document.getElementById('jumpscare').classList.remove('active');
+  startGame();
+}
+
+function startGame() {
+  state = initState();
+  clearAll();
+  stopAlarm(); stopPowerBeep();
+  document.getElementById('alert-scene').classList.remove('visible');
+  document.getElementById('lure-prompt').classList.remove('active');
+  document.getElementById('quiet-scene').style.opacity = '1';
+  document.getElementById('arena').classList.remove('attack-mode');
+  document.getElementById('log-box').innerHTML = '';
+  setAttackMode(false);
+  updateHUD(); updatePower();
+  log('🎮 Night started! Watch all four directions carefully.','sys');
+  // Ambient will start on first user interaction (Safari autoplay policy)
+  scheduleEvent();
+  startClock();
+}
+
+// Resume & start ambient on EVERY click (Safari needs gesture per-resume)
+document.addEventListener('click', () => {
+  if (!audioCtx) {
+    getCtx();
+    if (!muted) startAmbient();
+  } else {
+    audioCtx.resume().then(() => {
+      if (!muted && ambientNodes.length === 0) startAmbient();
+    });
+  }
+});
+
+// ══════════════════════════════════════════
+//  CLOCK
+// ══════════════════════════════════════════
+function startClock() {
+  let elapsed = 0;
+  clockInterval = setInterval(() => {
+    elapsed += 1000;
+    state.power = Math.max(0, state.power - 0.033);
+    updatePower();
+    if (state.power < 30 && state.power > 0) startPowerBeep();
+    else if (state.power >= 30) stopPowerBeep();
+    if (state.power <= 0) { clearAll(); triggerDeath(ANIMATRONICS[0]); return; }
+    if (elapsed >= 30000) {
+      elapsed = 0;
+      state.hourIdx++;
+      if (state.hourIdx >= HOURS.length) { clearAll(); triggerWin(); return; }
+      updateHUD();
+      log(`⏰ ${HOURS[state.hourIdx]} — the night grows darker.`,'sys');
+    }
+  }, 1000);
+}
+
+function clearAll() {
+  clearTimeout(eventTimeout);
+  clearInterval(clockInterval);
+  clearTimeout(timerBarAnim);
+}
+
+// ══════════════════════════════════════════
+//  EVENTS
+// ══════════════════════════════════════════
+function scheduleEvent() {
+  if (!state.alive) return;
+  const delay = 3500 + Math.random() * 5000;
+  eventTimeout = setTimeout(() => {
+    if (!state.alive) return;
+    if (Math.random() < 0.55) triggerAttack();
+    else {
+      setStatus("👀 The office is quiet…");
+      log("👀 The office is quiet…");
+      scheduleEvent();
+    }
+  }, delay);
+}
+
+function triggerAttack() {
+  state.inEvent = true;
+  const anim = ANIMATRONICS[Math.floor(Math.random()*ANIMATRONICS.length)];
+  const loc  = LOCATIONS[Math.floor(Math.random()*LOCATIONS.length)];
+  const side = SIDES[Math.floor(Math.random()*SIDES.length)];
+  state.currentAnim = anim;
+  state.currentLoc  = loc;
+  state.currentSide = side;
+
+  // UI
+  document.getElementById('anim-text-name').textContent = anim.name;
+  document.getElementById('anim-location').textContent =
+    `approaching via ${side.toUpperCase()} ${loc.toUpperCase()}`;
+  document.getElementById('anim-description').textContent = anim.desc;
+  // Image preview
+  const imgPrev = document.getElementById('anim-img-preview');
+  const imgFall = document.getElementById('anim-img-fallback');
+  imgPrev.style.display = 'block'; imgFall.style.display = 'none';
+  imgPrev.src = anim.img;
+  document.getElementById('arrow-left').classList.toggle('active',  side==='left');
+  document.getElementById('arrow-right').classList.toggle('active', side==='right');
+  document.getElementById('alert-scene').classList.add('visible');
+  document.getElementById('quiet-scene').style.opacity = '0';
+  document.getElementById('arena').classList.add('attack-mode');
+
+  setStatus(`⚠ ${anim.name} — ${side} ${loc}!`);
+  log(`⚠ ${anim.name} approaching via ${side.toUpperCase()} ${loc.toUpperCase()}!`,'warn');
+  log(`React within ${REACTION_TIME/1000}s — use the correct side!`,'warn');
+
+  setAttackMode(true);
+  try { playAlarm(); } catch(e) {}
+
+  startTimerBar(REACTION_TIME, () => {
+    if (state.inEvent) {
+      log(`💀 Too slow! ${anim.name} got in!`,'warn');
+      stopAlarm();
+      triggerDeath(anim);
+    }
+  });
+}
+
+// ══════════════════════════════════════════
+//  ACTION HANDLING
+// ══════════════════════════════════════════
+function doAction(loc, side) {
+  if (!state.alive || !state.inEvent || state.awaitingLure) return;
+  playClick();
+  stopTimerBar();
+  setAttackMode(false);
+  stopAlarm();
+
+  const anim     = state.currentAnim;
+  const needLoc  = state.currentLoc;
+  const needSide = state.currentSide;
+  const okLoc    = loc  === needLoc;
+  const okSide   = side === needSide;
+
+  if (!okLoc || !okSide) {
+    let msg = '';
+    if (!okLoc && !okSide) msg = `Wrong side AND wrong location! ${anim.name} slips through!`;
+    else if (!okLoc)       msg = `Wrong location! ${anim.name} was at the ${needLoc}.`;
+    else                   msg = `Wrong side! ${anim.name} came from the ${needSide}!`;
+    log(`❌ ${msg}`,'warn');
+    try { playError(); } catch(e) {}
+    triggerDeath(anim);
+    return;
+  }
+
+  drainPower(loc==='cam'?5:loc==='audio'?6:loc==='vent'?8:10);
+
+  if (loc === 'cam') {
+    log(`📷 Cameras checked — ${anim.name} spotted on ${side} cam!`,'good');
+    state.awaitingLure = true;
+    document.getElementById('lure-prompt').classList.add('active');
+    setAttackMode(false);
+    return;
+  }
+
+  if (loc==='door')  log(`🚪 ${side.toUpperCase()} door sealed!`,'good');
+  if (loc==='vent')  log(`🌀 ${side.toUpperCase()} vent locked!`,'good');
+  if (loc==='audio') log(`🔊 Audio lure played — ${anim.name} diverted!`,'good');
+
+  resolveSuccess();
+}
+
+function answerLure(yes) {
+  playClick();
+  state.awaitingLure = false;
+  document.getElementById('lure-prompt').classList.remove('active');
+  if (yes) {
+    log('🔊 Audio lure activated. Animatronic steps away.','good');
+    resolveSuccess();
+  } else {
+    log(`💀 ${state.currentAnim.name} charges in!`,'warn');
+    try { playError(); } catch(e) {}
+    triggerDeath(state.currentAnim);
+  }
+}
+
+function resolveSuccess() {
+  state.inEvent = false;
+  state.survived++;
+  updateHUD();
+  document.getElementById('alert-scene').classList.remove('visible');
+  document.getElementById('quiet-scene').style.opacity = '1';
+  document.getElementById('arena').classList.remove('attack-mode');
+  setStatus('✅ Threat neutralized. Stay alert…');
+  log('✅ Threat neutralized!','good');
+  setAttackMode(false);
+  try { playSuccess(); } catch(e) {}
+  scheduleEvent();
+}
+
+// ══════════════════════════════════════════
+//  DEATH / WIN
+// ══════════════════════════════════════════
+function triggerDeath(anim) {
+  // Update state FIRST so game is never stuck
+  state.alive = false; state.inEvent = false;
+  clearAll(); stopAlarm(); stopPowerBeep();
+  setAttackMode(false);
+  // Show jumpscare UI immediately
+  document.getElementById('js-img').src = anim.img;
+  document.getElementById('js-fallback').style.display = 'none';
+  const js = document.getElementById('jumpscare');
+  js.classList.add('active');
+  // Audio after UI (errors here won't block game)
+  try { playScreech(); } catch(e) {}
+  setTimeout(() => {
+    js.innerHTML = `
+      <div style="display:flex;flex-direction:column;align-items:center;gap:20px;padding:20px;text-align:center;">
+        <div style="font-family:'Creepster',cursive;font-size:clamp(2.5rem,9vw,5.5rem);color:#e03030;text-shadow:0 0 30px #e03030;">GAME OVER</div>
+        <img src="${anim.img}" style="width:180px;opacity:.65;filter:grayscale(50%) brightness(.5)" onerror="this.style.display='none'"/>
+        <div style="color:#555;font-size:.8rem;letter-spacing:2px;">${state.survived} threat(s) survived this night</div>
+        <button onclick="restartGame()" style="padding:13px 38px;background:rgba(220,50,50,.15);border:2px solid #e03030;border-radius:40px;color:#e03030;font-family:'Roboto Mono',monospace;font-size:.95rem;font-weight:700;letter-spacing:2px;cursor:pointer;">
+          ▶ TRY AGAIN
+        </button>
+      </div>`;
+  }, 2500);
+}
+
+function triggerWin() {
+  state.alive = false;
+  stopAmbient(); stopPowerBeep();
+  document.getElementById('win-stats').textContent = `Threats survived: ${state.survived}`;
+  document.getElementById('win-screen').classList.add('active');
+  playSuccess();
+}
+
+// ══════════════════════════════════════════
+//  TIMER BAR
+// ══════════════════════════════════════════
+function startTimerBar(duration, cb) {
+  const bar = document.getElementById('timer-bar');
+  bar.style.transition = 'none'; bar.style.width = '100%';
+  setTimeout(() => {
+    bar.style.transition = `width ${duration}ms linear`;
+    bar.style.width = '0%';
+  }, 30);
+  timerBarAnim = setTimeout(cb, duration);
+}
+function stopTimerBar() {
+  clearTimeout(timerBarAnim);
+  const bar = document.getElementById('timer-bar');
+  bar.style.transition = 'none'; bar.style.width = '100%';
+}
+
+// ══════════════════════════════════════════
+//  UI HELPERS
+// ══════════════════════════════════════════
+function setAttackMode(on) {
+  // Enable/disable buttons
+  document.querySelectorAll('.side-btn').forEach(b => b.disabled = !on);
+  // Light up all groups
+  ['grp-door','grp-vent','grp-cam','grp-audio'].forEach(id => {
+    document.getElementById(id).classList.toggle('lit', on);
+  });
+}
+
+function updateHUD() {
+  document.getElementById('night-val').textContent    = state.night;
+  document.getElementById('hour-val').textContent     = HOURS[Math.min(state.hourIdx,HOURS.length-1)];
+  document.getElementById('survived-val').textContent = state.survived;
+}
+function updatePower() {
+  const p = Math.round(state.power);
+  document.getElementById('power-bar').style.width  = p+'%';
+  document.getElementById('power-txt').textContent   = p+'%';
+  document.getElementById('power-bar').style.filter  = p < 25 ? 'hue-rotate(-80deg) brightness(1.4)' : '';
+}
+function drainPower(n) { state.power = Math.max(0, state.power-n); updatePower(); }
+function setStatus(txt){ document.getElementById('status-text').textContent = txt; }
+function log(msg, type='') {
+  const box = document.getElementById('log-box');
+  const el  = document.createElement('div');
+  el.className = 'log-entry'+(type?' '+type:'');
+  const t = new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  el.textContent = `[${t}] ${msg}`;
+  box.prepend(el);
+}
+
+// ── START ──
+startGame();
+</script>
+</body>
+</html>

@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Facility Blueprint - FNAF</title>
+  <style>
+    body, html {
+      margin: 0; padding: 0;
+      width: 100%; height: 100vh;
+      background-color: #050505;
+      color: #33ff33;
+      font-family: 'Courier New', Courier, monospace;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    .cctv-overlay {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      z-index: 10;
+      pointer-events: none;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0, 0, 0, 0.3) 2px,
+        rgba(0, 0, 0, 0.3) 4px
+      );
+    }
+    h1 {
+      color: #e03030;
+      font-size: 2.5rem;
+      text-shadow: 0 0 10px #e03030;
+      letter-spacing: 4px;
+      margin-bottom: 20px;
+      z-index: 5;
+    }
+    .map-container {
+      background: rgba(10, 10, 10, 0.9);
+      border: 2px solid #e03030;
+      padding: 20px 40px;
+      border-radius: 8px;
+      box-shadow: 0 0 15px rgba(224, 48, 48, 0.5);
+      z-index: 5;
+      overflow-y: auto;
+      max-height: 70vh;
+      max-width: 95vw;
+    }
+    pre {
+      font-size: 0.9rem;
+      line-height: 1.3;
+      text-shadow: 0 0 5px rgba(51, 255, 51, 0.8);
+      margin: 0;
+    }
+    .back-btn {
+      margin-top: 25px;
+      background: transparent;
+      border: 2px solid #e03030;
+      color: #e03030;
+      padding: 10px 25px;
+      font-family: inherit;
+      font-weight: bold;
+      font-size: 1.2rem;
+      cursor: pointer;
+      z-index: 5;
+      transition: all 0.3s;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      border-radius: 4px;
+    }
+    .back-btn:hover {
+      background: rgba(224, 48, 48, 0.2);
+      box-shadow: 0 0 15px rgba(224, 48, 48, 0.6);
+      color: #fff;
+    }
+  </style>
+</head>
+<body>
+  <div class="cctv-overlay"></div>
+  <h1>FACILITY BLUEPRINT</h1>
+  
+  <div class="map-container">
+    <pre>
+                           ┌──────────────────────────────┐
+                           │   Camera 1 – SHOW STAGE      │
+                           │ (Freddy, Bonnie, Chica)      │
+                           └────────────┬─────────────────┘
+                                        │
+                           ┌──────────────────────────────┐
+                           │   Camera 2 – DINING AREA     │
+                           │                              │
+                           └───────┬───────────┬──────────┘
+                                   │           │
+                  ┌────────────────┘           └────────────────┐
+
+        🔴 Left Way                                      🔵 Right Way
+
+   ┌──────────────────────────────┐        ┌──────────────────────────────┐
+   │   Camera 3 – WEST HALL       │        │   Camera 7 – EAST HALL       │
+   │                              │        │                              │
+   └────────────┬─────────────────┘        └────────────┬─────────────────┘
+                │                                       │
+   ┌──────────────────────────────┐        ┌──────────────────────────────┐
+   │   Camera 4 – SUPPLY ROOM     │        │   Camera 8 – KITCHEN         │
+   │                              │        │                              │
+   └────────────┬─────────────────┘        └────────────┬─────────────────┘
+                │                                       │
+   ┌──────────────────────────────┐        ┌──────────────────────────────┐
+   │   Camera 5 – STORAGE ROOM    │        │   Camera 9 – RESTROOM AREA   │
+   │                              │        │                              │
+   └────────────┬─────────────────┘        └────────────┬─────────────────┘
+                │                                       │
+   ┌──────────────────────────────┐        ┌──────────────────────────────┐
+   │   Camera 6 – WEST HALL CORNER│        │   Camera 10 – EAST HALL CORNER│
+   │                              │        │                               │
+   └────────────┬─────────────────┘        └────────────┬──────────────────┘
+                │                                       │
+        🚪 LEFT DOOR                              🚪 RIGHT DOOR
+                │                                       │
+                └───────────────┬───────────────────────┘
+                                │
+                      🎮 SECURITY OFFICE
+                      (Nino (player) in here !!!)
+    </pre>
+  </div>
+  
+  <button class="back-btn" onclick="goBack()">Back to Main Menu</button>
+  
+  <script>
+    // Suara buzz statis ketika membuka layar ini
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    
+    function startHum() {
+      if(audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+      
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.value = 60; // Buzz rendah
+      
+      gain.gain.setValueAtTime(0, audioCtx.currentTime);
+      gain.gain.linearRampToValueAtTime(0.04, audioCtx.currentTime + 1); // Fade in
+      
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+    }
+
+    function playClick() {
+      if (!audioCtx) return;
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(400, audioCtx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.1);
+      
+      gain.gain.setValueAtTime(0.2, audioCtx.currentTime); 
+      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+      
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.15);
+    }
+
+    function goBack() {
+      playClick();
+      setTimeout(() => {
+        window.location.href = 'index2.html';
+      }, 150); // delay let sound play
+    }
+
+    // Mulai suara ambient pas halaman siap diload kalau browser allow
+    // Atau setelah mouse user bergerak
+    window.addEventListener('load', startHum);
+    document.addEventListener('click', startHum, { once: true });
+  </script>
+</body>
+</html>

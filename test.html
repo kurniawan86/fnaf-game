@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FNAF Show Stage Test</title>
+  <style>
+    body, html {
+      margin: 0; 
+      padding: 0;
+      width: 100%; 
+      height: 100vh;
+      background-color: #000;
+      overflow: hidden;
+      font-family: monospace;
+    }
+
+    /* Lapisan Latar Belakang (Show Stage) */
+    .background {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background-image: url('img/showstage.png');
+      background-size: cover;
+      background-position: center;
+      /* Membut panggung menjadi sangat gelap ala FNAF */
+      filter: brightness(0.3) contrast(1.3) sepia(0.2);
+      z-index: 1;
+    }
+    
+    /* Kontainer untuk para Animatronics (berdiri bersampingan) */
+    .characters {
+      position: absolute;
+      bottom: 2vh; /* Berdiri pas di lantai panggung bawah */
+      left: 0;
+      width: 100%;
+      height: 75vh; /* Mengisi 75% tinggi monitor */
+      display: flex;
+      justify-content: center;
+      align-items: flex-end; /* Supaya kaki mereka sejajar di bawah */
+      gap: 1vw; /* Jarak antar karakter */
+      z-index: 2;
+    }
+
+    /* Styling umum setiap karakter */
+    .animatronic {
+      height: 100%;
+      max-width: 24%; /* Memastikan 4 karakter muat dideret */
+      object-fit: contain; /* Menjaga rasio asli gambar */
+      /* Menggelapkan karakter agar menyatu dengan gelapnya panggung */
+      filter: drop-shadow(0 20px 20px rgba(0,0,0,0.95)) brightness(0.4) contrast(1.2);
+      transition: filter 0.3s;
+    }
+    
+    /* Variasi tinggi sedikit agar natural (opsional) */
+    #freddy { height: 105%; z-index: 3; } /* Freddy biasa di tengah dan lebih besar */
+    #foxy { height: 95%; }
+    #scraptrap { height: 90%; filter: drop-shadow(0 20px 20px rgba(0,0,0,0.95)) brightness(0.35) contrast(1.2); }
+    #lefty { height: 98%; }
+
+    /* Efek Kamera pengawas (Garis-garis statis) */
+    .cctv-overlay {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      z-index: 10;
+      pointer-events: none;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0, 0, 0, 0.25) 2px,
+        rgba(0, 0, 0, 0.25) 4px
+      );
+    }
+
+    /* Label Kamera di pojok */
+    .cam-label {
+      position: absolute;
+      top: 20px; right: 30px;
+      color: #fff;
+      font-size: 1.5rem;
+      z-index: 11;
+      text-shadow: 0 0 10px #fff;
+      pointer-events: none;
+    }
+    .rec-dot {
+      display: inline-block;
+      width: 15px; height: 15px;
+      background-color: red;
+      border-radius: 50%;
+      margin-right: 10px;
+      animation: blink 1.5s infinite;
+      box-shadow: 0 0 10px red;
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Latar Belakang -->
+  <div class="background"></div>
+  
+  <!-- Para Karakter (Foreground) -->
+  <div class="characters">
+    <img id="foxy" class="animatronic" src="img/foxy.png" alt="Foxy">
+    <img id="freddy" class="animatronic" src="img/freddy.png" alt="Freddy">
+    <img id="lefty" class="animatronic" src="img/lefty.png" alt="Lefty">
+    <img id="scraptrap" class="animatronic" src="img/scraptrap.png" alt="Scraptrap">
+  </div>
+  
+  <!-- Efek Visual Kamera CCTV -->
+  <div class="cctv-overlay"></div>
+  <div class="cam-label"><span class="rec-dot"></span>CAM 1A - SHOW STAGE</div>
+
+</body>
+</html>
